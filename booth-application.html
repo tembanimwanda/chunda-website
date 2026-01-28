@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Booth Application</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<style>
+*{box-sizing:border-box;margin:0;padding:0;font-family:Segoe UI,Arial}
+body{background:#f4f6f8;padding:40px}
+
+.form-box{
+  max-width:600px;
+  margin:auto;
+  background:#fff;
+  padding:30px;
+  border-radius:20px;
+  box-shadow:0 15px 40px rgba(0,0,0,.15);
+}
+
+h2{text-align:center;margin-bottom:25px;color:#1abc9c}
+
+label{font-weight:bold;font-size:14px;margin-top:15px;display:block}
+input,select{
+  width:100%;
+  padding:12px;
+  margin-top:6px;
+  border-radius:10px;
+  border:1px solid #ccc;
+  font-size:14px;
+}
+
+input[readonly]{background:#eef2f7}
+
+button{
+  margin-top:25px;
+  width:100%;
+  padding:14px;
+  border:none;
+  border-radius:20px;
+  background:#1abc9c;
+  color:#fff;
+  font-weight:bold;
+  cursor:pointer;
+}
+
+button:hover{background:#16a085}
+
+/* ===== PAYMENT LOADING OVERLAY ===== */
+#paymentOverlay{
+  display:none;
+  position:fixed;
+  top:0; left:0; width:100%; height:100%;
+  background:rgba(0,0,0,0.5);
+  z-index:9999;
+  justify-content:center;
+  align-items:center;
+  flex-direction:column;
+  color:#fff;
+  font-size:20px;
+  font-weight:bold;
+  text-align:center;
+}
+
+#paymentOverlay.active {
+  display: flex;
+}
+
+.loader{
+  border: 8px solid #f3f3f3;
+  border-top: 8px solid #1abc9c;
+  border-radius: 50%;
+  width: 70px;
+  height: 70px;
+  animation: spin 1s linear infinite;
+  margin-bottom:15px;
+}
+
+@keyframes spin{
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* ===== SUCCESS NOTIFICATION ===== */
+#successNotification{
+  display:none;
+  position:fixed;
+  top:20px;
+  left:50%;
+  transform:translateX(-50%);
+  background:#1abc9c;
+  color:#fff;
+  padding:15px 25px;
+  border-radius:10px;
+  font-weight:bold;
+  box-shadow:0 5px 15px rgba(0,0,0,0.2);
+  z-index:10000;
+}
+</style>
+</head>
+
+<body>
+
+<div class="form-box">
+  <h2>Booth Application</h2>
+
+  <!-- BOOTH DETAILS (AUTO FILLED) -->
+  <label>Booth Number</label>
+  <input type="text" id="boothNumber" readonly>
+
+  <label>Booth Location</label>
+  <input type="text" id="boothLocation" readonly>
+
+  <label>Booth Size</label>
+  <input type="text" id="boothSize" readonly>
+
+  <label>Booth Price (K)</label>
+  <input type="text" id="boothPrice" readonly>
+
+  <!-- PAYMENT AMOUNT -->
+  <label>Payment Amount (K)</label>
+  <input type="number" id="paymentAmount" placeholder="Enter payment amount" required>
+
+  <!-- VENDOR DETAILS -->
+  <label>Vendor Full Name</label>
+  <input type="text" id="vendorName" required>
+
+  <label>Business Name</label>
+  <input type="text" id="businessName" required>
+
+  <label>Phone Number</label>
+  <input type="tel" id="phone" required>
+
+  <label>Email</label>
+  <input type="email" id="email" required>
+
+  <label>NRC / ID Number</label>
+  <input type="text" id="nrc" required>
+
+  <button onclick="submitApplication()">Pay & Submit Application</button>
+</div>
+
+<!-- PAYMENT LOADING OVERLAY -->
+<div id="paymentOverlay">
+  <div class="loader"></div>
+  Processing Payment...
+</div>
+
+<!-- SUCCESS NOTIFICATION -->
+<div id="successNotification">
+  Payment successful! Application submitted.
+</div>
+
+<script>
+/* ===== LOAD BOOTH DETAILS AUTOMATICALLY ===== */
+const boothNumber = sessionStorage.getItem("selectedBooth");
+
+if(!boothNumber){
+  alert("No booth selected. Redirecting...");
+  window.location.href = "index.html";
+}
+
+const booths = JSON.parse(localStorage.getItem("booths") || "[]");
+const booth = booths.find(b => b.booth_number == boothNumber);
+
+if(booth){
+  document.getElementById("boothNumber").value = booth.booth_number;
+  document.getElementById("boothLocation").value = booth.location || "Not specified";
+  document.getElementById("boothSize").value = booth.size;
+  document.getElementById("boothPrice").value = booth.price;
+  document.getElementById("paymentAmount").value = booth.price; // default
+}
+
+/* ===== SUBMIT APPLICATION WITH PAYMENT ===== */
+function submitApplication(){
+  const vendorName = document.getElementById("vendorName").value.trim();
+  const businessName = document.getElementById("businessName").value.trim();
+  const phone = document.getElementById("phone").value.trim();
+  const email = document.getElementById("email").value.trim();
+  const nrc = document.getElementById("nrc").value.trim();
+  const paymentAmount = Number(document.getElementById("paymentAmount").value);
+  const boothPrice = Number(booth.price);
+
+  // Validate all vendor fields
+  if(!vendorName || !businessName || !phone || !email || !nrc){
+    alert("Please fill in all vendor fields before making payment.");
+    return;
+  }
+
+  // Validate payment amount
+  if(!paymentAmount || isNaN(paymentAmount) || paymentAmount <= 0){
+    alert("Please enter a valid payment amount.");
+    return;
+  }
+
+  // Ensure payment is at least booth price
+  if(paymentAmount < boothPrice){
+    alert(`Payment must be at least the booth price: K${boothPrice}`);
+    return;
+  }
+
+  // Show loading overlay
+  const overlay = document.getElementById("paymentOverlay");
+  overlay.classList.add("active");
+
+  // Simulate payment process (3 seconds)
+  setTimeout(() => {
+    overlay.classList.remove("active");
+
+    // Save application
+    const application = {
+      booth_number: booth.booth_number,
+      location: booth.location,
+      size: booth.size,
+      price: booth.price,
+      payment_amount: paymentAmount,
+      vendor_name,
+      business_name,
+      phone,
+      email,
+      nrc,
+      status: "Pending"
+    };
+
+    const applications = JSON.parse(localStorage.getItem("applications") || "[]");
+    applications.push(application);
+    localStorage.setItem("applications", JSON.stringify(applications));
+
+    // Mark booth as reserved
+    booth.status = "Pending";
+    localStorage.setItem("booths", JSON.stringify(booths));
+
+    // Show success notification
+    const successBox = document.getElementById("successNotification");
+    successBox.style.display = "block";
+
+    // Auto hide notification after 3 seconds and redirect
+    setTimeout(() => {
+      successBox.style.display = "none";
+      window.location.href = "index.html";
+    }, 3000);
+
+  }, 3000);
+}
+</script>
+
+</body>
+</html>

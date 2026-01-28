@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Admin | Contract Management</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:Segoe UI,Arial,sans-serif;background:#f4f6f8;color:#333}
+
+/* HEADER */
+header{
+  background:linear-gradient(135deg,#141e30,#243b55);
+  color:#fff;padding:18px;
+  display:flex;justify-content:space-between;align-items:center;
+}
+header h2{font-size:18px}
+header button{padding:8px 12px;border:none;border-radius:8px;background:#e74c3c;color:#fff;cursor:pointer}
+
+/* CONTAINER */
+.container{max-width:1200px;margin:auto;padding:20px}
+
+/* CARD */
+.card{
+  background:#fff;padding:20px;border-radius:18px;box-shadow:0 15px 35px rgba(0,0,0,.1);
+  margin-bottom:25px;
+}
+
+/* FORM GRID */
+.form-grid{display:grid;gap:15px}
+@media(min-width:768px){.form-grid{grid-template-columns:repeat(4,1fr)}}
+input,select{padding:12px;border-radius:12px;border:1px solid #ccc;font-size:14px}
+button{padding:12px 18px;border:none;border-radius:14px;font-weight:bold;cursor:pointer}
+.btn-save{background:#1abc9c;color:#fff}
+.btn-clear{background:#bdc3c7}
+
+/* TABLE */
+.table-wrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse}
+th,td{padding:12px;border-bottom:1px solid #ddd;font-size:14px}
+th{background:#f1f5f9;text-align:left}
+.paid{color:#27ae60;font-weight:bold}
+.pending{color:#e67e22;font-weight:bold}
+.overdue{color:#e74c3c;font-weight:bold}
+.action{padding:6px 10px;border-radius:10px;font-size:12px;cursor:pointer;border:none}
+.edit{background:#3498db;color:#fff}
+.delete{background:#95a5a6;color:#fff}
+
+/* MOBILE */
+@media(max-width:600px){th,td{font-size:13px}}
+</style>
+</head>
+<body>
+
+<header>
+  <h2>Admin • Contract Management</h2>
+  <button onclick="logout()">Logout</button>
+</header>
+
+<div class="container">
+
+<!-- ADD / EDIT CONTRACT -->
+<div class="card">
+  <h3>Add / Edit Contract</h3><br>
+  <div class="form-grid">
+    <!-- Vendor Dropdown -->
+    <select id="vendorName">
+      <option value="">Select Vendor</option>
+    </select>
+
+    <input id="boothNo" placeholder="Booth Number (e.g B12)">
+    <input id="startDate" type="date">
+    <input id="endDate" type="date">
+    <input id="amount" placeholder="Amount (K)">
+    <select id="paymentStatus">
+      <option value="Pending">Pending</option>
+      <option value="Paid">Paid</option>
+      <option value="Overdue">Overdue</option>
+    </select>
+  </div><br>
+  <button class="btn-save" onclick="saveContract()">Save Contract</button>
+  <button class="btn-clear" onclick="clearForm()">Clear</button>
+</div>
+
+<!-- CONTRACT TABLE -->
+<div class="card table-wrap">
+<table>
+<thead>
+<tr>
+  <th>Vendor</th>
+  <th>Booth</th>
+  <th>Start Date</th>
+  <th>End Date</th>
+  <th>Amount</th>
+  <th>Status</th>
+  <th>Actions</th>
+</tr>
+</thead>
+<tbody id="contractTable"></tbody>
+</table>
+</div>
+
+</div>
+
+<script>
+// ===== STORAGE =====
+let contracts = JSON.parse(localStorage.getItem("contracts")||"[]");
+let editIndex = null;
+
+// ===== POPULATE VENDOR DROPDOWN =====
+function populateVendors() {
+  const vendorSelect = document.getElementById('vendorName');
+  vendorSelect.innerHTML = '<option value="">Select Vendor</option>';
+  const vendors = JSON.parse(localStorage.getItem("vendors")||"[]"); // from vendor management
+  vendors.forEach(v=>{
+    const option = document.createElement('option');
+    option.value = v.username; // assuming username is the unique vendor identifier
+    option.textContent = v.username;
+    vendorSelect.appendChild(option);
+  });
+}
+
+// ===== SAVE CONTRACT =====
+function saveContract(){
+  const contract = {
+    vendor:document.getElementById('vendorName').value,
+    booth:document.getElementById('boothNo').value.trim(),
+    start:document.getElementById('startDate').value,
+    end:document.getElementById('endDate').value,
+    amount:Number(document.getElementById('amount').value),
+    status:document.getElementById('paymentStatus').value
+  };
+
+  if(!contract.vendor || !contract.booth || !contract.start || !contract.end || !contract.amount){
+    alert("Please fill all fields");
+    return;
+  }
+
+  if(editIndex !== null){
+    contracts[editIndex] = contract;
+    editIndex = null;
+  } else {
+    contracts.push(contract);
+  }
+
+  localStorage.setItem("contracts",JSON.stringify(contracts));
+  clearForm();
+  render();
+}
+
+// ===== RENDER CONTRACTS =====
+function render(){
+  const contractTable = document.getElementById("contractTable");
+  contractTable.innerHTML = "";
+
+  contracts.forEach((c,i)=>{
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td>${c.vendor}</td>
+      <td>${c.booth}</td>
+      <td>${c.start}</td>
+      <td>${c.end}</td>
+      <td>K${c.amount}</td>
+      <td class="${c.status.toLowerCase()}">${c.status}</td>
+      <td>
+        <button class="action edit" onclick="editContract(${i})">Edit</button>
+        <button class="action delete" onclick="removeContract(${i})">Delete</button>
+      </td>
+    `;
+    contractTable.appendChild(tr);
+  });
+}
+
+// ===== EDIT CONTRACT =====
+function editContract(i){
+  const c = contracts[i];
+  document.getElementById('vendorName').value = c.vendor;
+  document.getElementById('boothNo').value = c.booth;
+  document.getElementById('startDate').value = c.start;
+  document.getElementById('endDate').value = c.end;
+  document.getElementById('amount').value = c.amount;
+  document.getElementById('paymentStatus').value = c.status;
+  editIndex = i;
+}
+
+// ===== DELETE CONTRACT =====
+function removeContract(i){
+  if(confirm("Delete this contract?")){
+    contracts.splice(i,1);
+    localStorage.setItem("contracts",JSON.stringify(contracts));
+    render();
+  }
+}
+
+// ===== CLEAR FORM =====
+function clearForm(){
+  document.getElementById('vendorName').value = "";
+  document.getElementById('boothNo').value = "";
+  document.getElementById('startDate').value = "";
+  document.getElementById('endDate').value = "";
+  document.getElementById('amount').value = "";
+  document.getElementById('paymentStatus').value = "Pending";
+  editIndex = null;
+}
+
+// ===== LOGOUT =====
+function logout(){
+  sessionStorage.clear();
+  window.location.href="admin.html";
+}
+
+// ===== INITIAL LOAD =====
+document.addEventListener("DOMContentLoaded",()=>{
+  populateVendors();
+  contracts = JSON.parse(localStorage.getItem("contracts")||"[]");
+  render();
+});
+</script>
+
+</body>
+</html>
